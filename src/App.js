@@ -5,13 +5,22 @@ import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
 import RightPanel from './components/RightPanel';
 import Footer from './components/Footer';
-import { loadChatHistory, saveChatHistory, clearChatHistory, saveChatSession } from './utils/session';
+import { 
+  loadChatHistory, 
+  saveChatHistory, 
+  clearChatHistory, 
+  saveChatSession,
+  createNewSession,
+  switchToSession,
+  getUserId,
+  canCreateNewChat,
+  getChatCount
+} from './utils/session';
 
 import './css/style.css';
 
 function App() {
   const [messages, setMessages] = useState([]);
-  const [currentChatSaved, setCurrentChatSaved] = useState(false);
   const [isLoadingOldChat, setIsLoadingOldChat] = useState(false);
 
   // โหลดประวัติแชทเมื่อ component mount
@@ -19,24 +28,23 @@ function App() {
     const history = loadChatHistory();
     if (history.length > 0) {
       setMessages(history);
-      setCurrentChatSaved(true); // ถ้าโหลดจากประวัติ ถือว่าบันทึกแล้ว
     }
   }, []);
 
-  // บันทึกประวัติแชททุกครั้งที่ messages เปลี่ยน (ยกเว้นตอนโหลดแชทเก่า)
+  // บันทึกประวัติแชททุกครั้งที่ messages เปลี่ยน
   useEffect(() => {
     if (messages.length > 0 && !isLoadingOldChat) {
       saveChatHistory(messages);
       
-      // บันทึกเป็น session เมื่อมีข้อความจาก AI (สนทนาเสร็จ)
+      // บันทึกเป็น session เมื่อมีข้อความจาก AI
       const hasAiResponse = messages.some(msg => msg.sender === 'ai' && msg.type !== 'loading');
-      if (hasAiResponse && !currentChatSaved) {
+      if (hasAiResponse) {
         const messagesWithoutLoading = messages.filter(msg => msg.type !== 'loading');
-        saveChatSession(messagesWithoutLoading);
-        setCurrentChatSaved(true);
+        const userId = getUserId();
+        saveChatSession(messagesWithoutLoading, userId);
       }
     }
-  }, [messages, currentChatSaved, isLoadingOldChat]);
+  }, [messages, isLoadingOldChat]);
 
   const handleSendMessage = (userText, aiResponse, isLoading) => {
     if (isLoading) {
@@ -56,36 +64,50 @@ function App() {
 
   // ฟังก์ชันสำหรับเริ่มแชทใหม่
   const handleNewChat = () => {
-    // บันทึกแชทปัจจุบันก่อนเริ่มใหม่ (ถ้ายังไม่ได้บันทึก)
-    if (messages.length > 0 && !currentChatSaved) {
-      const messagesWithoutLoading = messages.filter(msg => msg.type !== 'loading');
-      saveChatSession(messagesWithoutLoading);
+    const userId = getUserId();
+    
+    // ตรวจสอบว่าสามารถสร้างแชทใหม่ได้หรือไม่
+    if (!canCreateNewChat(userId)) {
+      const chatCount = getChatCount(userId);
+      alert(
+        '⚠️ ไม่สามารถสร้างแชทใหม่ได้\n\n' +
+        `คุณมีแชทครบ ${chatCount}/3 แชทแล้ว\n\n` +
+        '💡 กรุณาลบแชทเก่าก่อนสร้างใหม่'
+      );
+      return;
     }
     
-    clearChatHistory();
-    setMessages([]);
-    setCurrentChatSaved(false);
-    setIsLoadingOldChat(false);
+    // บันทึกแชทปัจจุบันก่อนเริ่มใหม่
+    if (messages.length > 0) {
+      const messagesWithoutLoading = messages.filter(msg => msg.type !== 'loading');
+      saveChatSession(messagesWithoutLoading, userId);
+    }
     
     // สร้าง session ใหม่
-    sessionStorage.removeItem('chatSessionId');
+    createNewSession();
+    clearChatHistory();
+    setMessages([]);
+    setIsLoadingOldChat(false);
   };
 
   // ฟังก์ชันสำหรับโหลดแชทจากประวัติ
   const handleLoadChat = (chatMessages, sessionId) => {
-    // บันทึกแชทปัจจุบันก่อน (ถ้ายังไม่ได้บันทึก)
-    if (messages.length > 0 && !currentChatSaved) {
+    // บันทึกแชทปัจจุบันก่อน
+    if (messages.length > 0) {
       const messagesWithoutLoading = messages.filter(msg => msg.type !== 'loading');
-      saveChatSession(messagesWithoutLoading);
+      const userId = getUserId();
+      saveChatSession(messagesWithoutLoading, userId);
     }
     
-    // ตั้งค่า flag ป้องกันการบันทึกซ้ำ
+    // เปลี่ยนไปยัง session ที่เลือก
+    switchToSession(sessionId);
+    
+    // โหลดข้อความ
     setIsLoadingOldChat(true);
     setMessages(chatMessages);
     saveChatHistory(chatMessages);
-    setCurrentChatSaved(true); // แชทนี้บันทึกแล้ว ไม่ต้องบันทึกอีก
     
-    // Reset flag หลังจาก 500ms
+    // Reset flag
     setTimeout(() => {
       setIsLoadingOldChat(false);
     }, 500);

@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { getAllChatSessions, deleteChatSession, deleteAllChatSessions } from '../utils/session';
+import { 
+  getAllUserSessions, 
+  deleteChatSession, 
+  deleteAllChatSessions,
+  getUserId 
+} from '../utils/session';
 import '../css/style.css';
 
 function LeftPanel({ onLoadChat, onNewChat }) {
@@ -11,21 +16,24 @@ function LeftPanel({ onLoadChat, onNewChat }) {
   }, [refreshKey]);
 
   const loadSessions = () => {
-    const allSessions = getAllChatSessions();
+    const userId = getUserId();
+    const allSessions = getAllUserSessions(userId);
     setSessions(allSessions);
   };
 
   const handleDeleteSession = (e, sessionId) => {
     e.stopPropagation(); // ป้องกันไม่ให้คลิกโหลดแชท
     if (window.confirm('คุณต้องการลบแชทนี้หรือไม่?')) {
-      deleteChatSession(sessionId);
+      const userId = getUserId();
+      deleteChatSession(sessionId, userId);
       setRefreshKey(prev => prev + 1); // Force refresh
     }
   };
 
   const handleDeleteAll = () => {
     if (window.confirm('คุณต้องการลบประวัติแชททั้งหมดหรือไม่?')) {
-      deleteAllChatSessions();
+      const userId = getUserId();
+      deleteAllChatSessions(userId);
       setSessions([]);
       setRefreshKey(prev => prev + 1); // Force refresh
     }

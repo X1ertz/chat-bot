@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import '../css/style.css';
-import { getSessionId } from '../utils/session';
+import { getCurrentSessionId, getUserId } from '../utils/session';
 
 function ChatInput({ onSendMessage }) {
   const [input, setInput] = useState('');
@@ -10,7 +10,8 @@ function ChatInput({ onSendMessage }) {
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
-    const sessionId = getSessionId();
+    const sessionId = getCurrentSessionId(); // ใช้ session ID ปัจจุบัน
+    const userId = getUserId(); // ดึง user ID
 
     // เพิ่มข้อความของ user ทันที
     onSendMessage(userMessage, null, false);
@@ -27,13 +28,14 @@ function ChatInput({ onSendMessage }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage,
-          sessionId: sessionId,
+          sessionId: sessionId,  // ส่ง sessionId ไปให้ Zep ใน n8n
+          userId: userId         // ส่ง userId ไปด้วย (ถ้า n8n ต้องการ)
         }),
       });
 
       const data = await response.json();
       
-      // ลบ loading message และเพิ่ม response จริง
+      // ลบ loading message และเพิ่ง response จริง
       let aiResponse = '';
       
       if (data.output) {
