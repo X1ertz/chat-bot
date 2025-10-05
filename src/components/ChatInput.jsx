@@ -23,7 +23,7 @@ function ChatInput({ onSendMessage }) {
     setInput('');
 
     try {
-      const response = await fetch('https://n8n.r0und.xyz/webhook-test/9a9a560b-1ae9-4bcf-a3ce-3aac8b635830', {
+      const response = await fetch('https://n8n.r0und.xyz/webhook/9a9a560b-1ae9-4bcf-a3ce-3aac8b635830', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
