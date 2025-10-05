@@ -1,12 +1,57 @@
 import React, { useState } from 'react';
 import '../css/style.css';
+import { getSessionId } from '../utils/session';
 
 function ChatInput({ onSendMessage }) {
   const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = () => {
-    onSendMessage(input);
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = input.trim();
+    const sessionId = getSessionId();
+
+    // เพิ่มข้อความของ user ทันที
+    onSendMessage(userMessage, null, false);
+    
+    // แสดง loading state
+    setIsLoading(true);
+    onSendMessage(null, null, true); // เพิ่ม loading message
+
     setInput('');
+
+    try {
+      const response = await fetch('https://n8n.r0und.xyz/webhook-test/9a9a560b-1ae9-4bcf-a3ce-3aac8b635830', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage,
+          sessionId: sessionId,
+        }),
+      });
+
+      const data = await response.json();
+      
+      // ลบ loading message และเพิ่ม response จริง
+      let aiResponse = '';
+      
+      if (data.output) {
+        aiResponse = data.output;
+      } else if (Array.isArray(data) && data[0]?.output) {
+        aiResponse = data[0].output;
+      } else {
+        aiResponse = JSON.stringify(data, null, 2);
+      }
+
+      onSendMessage(null, aiResponse, false);
+      
+    } catch (error) {
+      console.error('เกิดข้อผิดพลาด:', error);
+      onSendMessage(null, 'ขอโทษค่ะ เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง', false);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -25,9 +70,10 @@ function ChatInput({ onSendMessage }) {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyPress={handleKeyPress}
+        disabled={isLoading}
       ></textarea>
-      <button onClick={handleSend}>
-        <i className="fa-solid fa-paper-plane"></i>
+      <button onClick={handleSend} disabled={isLoading}>
+        <i className={isLoading ? "fa-solid fa-circle-notch fa-spin" : "fa-solid fa-paper-plane"}></i>
       </button>
     </div>
   );
